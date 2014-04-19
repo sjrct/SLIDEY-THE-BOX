@@ -29,11 +29,13 @@ extern "C" {
 #include "stb_image.c"
 }
 
+#define LEVELS_TO_WIN 11
 #define NEEDED_TO_WIN 5
 
 #define MOVE_SPEED .03
 #define ROT_SPEED  .0003
 #define ROT_MULT   1.00001
+#define CAM_ROT_SPEED 0.01
 
 #define NEAR ((GLfloat).1)
 #define FAR  ((GLfloat)100.)
@@ -43,6 +45,8 @@ GLfloat aspect = 640./480.;
 static int window_width = 640;
 static int window_height = 480;
 static int points_got = 0;
+static int level = 1;
+static int do_reset = 0;
 
 typedef struct {
 	GLuint vao;
@@ -221,6 +225,7 @@ static void keypress_callback(GLFWwindow * win, int key, int sc, int act, int mo
 		if (key == 'E') e_down = state;
 		if (key == 'Z') z_down = state;
 		if (key == 'X') x_down = state;
+		if (key == GLFW_KEY_SPACE && (level < 0 || level >= LEVELS_TO_WIN)) do_reset = 1;
 	}
 }
 
@@ -262,8 +267,8 @@ static glm::vec3 rand_pos(glm::vec3 plyr)
 	glm::vec3 r;
 
 	do {
-		x = (GLfloat)(rand() % 20 - 10);
-		z = (GLfloat)(rand() % 20 - 10);
+		x = (GLfloat)(random() % 20 - 10);
+		z = (GLfloat)(random() % 20 - 10);
 		r = glm::vec3(x, 0., z);
 	} while (collision(plyr, r));
 
@@ -272,6 +277,9 @@ static glm::vec3 rand_pos(glm::vec3 plyr)
 
 static void out_text(GLFWwindow * window, const char * txt)
 {
+	// this function gets a x11 window and creates a cairo instance from it to
+	// draw to text to it
+
 	static int first = 1;
 	static cairo_t * cr;
 
@@ -311,7 +319,7 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_SAMPLES, 16);
+	glfwWindowHint(GLFW_SAMPLES, 4);
 
 	// create glfw window
 	GLFWwindow * window = glfwCreateWindow(window_width, window_height, "Project 2", NULL, NULL);
@@ -326,11 +334,14 @@ int main()
 	glewExperimental = GL_TRUE;
 	assert(glewInit() == GLEW_OK);
 
+
+	glfwSwapInterval(1);
+
 	// enable depth buffer
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
-	srand(time(NULL));
+	srandom(time(NULL));
 
 	// make stuff
 	model_t cube = make_cube("tex/plyr.png");
@@ -348,48 +359,83 @@ int main()
 	GLfloat zrinc = 0.;
 	GLfloat cam_angle = 0.;
 
+	// level vars
+	GLfloat rot_speed = ROT_SPEED;
+	GLfloat rot_mult = ROT_MULT;
+	GLfloat plyr_speed_div = 3.;
+
 	// main loop
 	double ptime = glfwGetTime();
 	while (!glfwWindowShouldClose(window)) {
+		// this could probably be done cleaner
+		if (do_reset) {
+			plyr_pos.x = 0.;
+			plyr_pos.z = 0.;
+			plyr_rot = glm::vec3(0.);
+			pln_rot  = glm::vec3(0.);
+			pnt_pos  = rand_pos(plyr_pos);
+			pnt_rot  = glm::vec3(M_PI/4., 0., 0.);
+			xrinc = zrinc = 0.;
+			do_reset = 0;
+			points_got = 0;
+			cam_angle = M_PI/4.;
+			level = 1;
+			rot_speed = ROT_SPEED;
+			rot_mult = ROT_MULT;
+			plyr_speed_div = 3.;
+		}
 
 		double time = glfwGetTime();
 		if (time - ptime > .01) {
 			ptime = time;
 
-			if (points_got >= 0 && points_got < NEEDED_TO_WIN) {
+			if (level >= 0 && level < LEVELS_TO_WIN) {
 				// check for collision with points
 				if (collision(plyr_pos, pnt_pos)) {
 					pnt_pos = rand_pos(plyr_pos);
 					points_got++;
+					if (points_got >= NEEDED_TO_WIN) {
+						points_got = 0;
+						switch ((++level) % 2) {
+						case 0:
+							rot_speed += ROT_SPEED / 2.;
+							break;
+						case 1:
+							plyr_speed_div /= 1.5;
+						case 2:
+							rot_mult *= ROT_MULT;
+						}
+					}
 				}
 
 				if (plyr_pos.x < -10.5 || plyr_pos.z < -10.5 || plyr_pos.x > 10.5 || plyr_pos.z > 10.5) {
-					points_got = -points_got-1;
+					level = -level;
 				}
 
 				// update positions
-				if (a_down) xrinc += ROT_SPEED;
-				if (d_down) xrinc -= ROT_SPEED;
-				if (w_down) zrinc += ROT_SPEED;
-				if (s_down) zrinc -= ROT_SPEED;
+				if (a_down) xrinc += rot_speed;
+				if (d_down) xrinc -= rot_speed;
+				if (w_down) zrinc += rot_speed;
+				if (s_down) zrinc -= rot_speed;
 
-				pnt_rot.y += .01;
-
-				xrinc *= ROT_MULT;
-				zrinc *= ROT_MULT;
+				xrinc *= rot_mult;
+				zrinc *= rot_mult;
 
 				pln_rot.x += xrinc;
 				pln_rot.z += zrinc;
 
 				plyr_rot.x = pln_rot.x;
 				plyr_rot.z = pln_rot.z;
-				plyr_pos.x -= fmod(pln_rot.z, M_PI*2.) / 3.;
-				plyr_pos.z += fmod(pln_rot.x, M_PI*2.) / 3.;
 			}
 
+			pnt_rot.y += .005 * level;
+			pnt_rot.x += .005 * level;
+			plyr_pos.x -= (fmod(pln_rot.z, M_PI*2.) / plyr_speed_div);
+			plyr_pos.z += (fmod(pln_rot.x, M_PI*2.) / plyr_speed_div);
+
 			// control camera
-			if (z_down) cam_angle += 0.04;
-			if (x_down) cam_angle -= 0.04;
+			if (z_down) cam_angle += CAM_ROT_SPEED;
+			if (x_down) cam_angle -= CAM_ROT_SPEED;
 
 			cam_angle *= .99;
 
@@ -414,18 +460,14 @@ int main()
 			draw_model(prog, point, pnt_pos, pln_rot, pnt_rot, glm::vec3(.5));
 
 			char buf[64];
-			if (points_got < 0) {
-				sprintf(buf, "You lose with %d points!\n", -points_got-1);
+			if (level < 0) {
+				sprintf(buf, "You lose with %d points on level %d.\n", points_got, -level);
 				out_text(window, buf);
+			} else if (level == LEVELS_TO_WIN) {
+				out_text(window, "You win!");
 			} else {
-				switch (points_got) {
-				case 5:
-					out_text(window, "You win!");
-					break;
-				default:
-					sprintf(buf, "Points: %d\n", points_got);
-					out_text(window, buf);
-				}
+				sprintf(buf, "Points: %d\nLevel: %d", points_got, level);
+				out_text(window, buf);
 			}
 
 			glfwPollEvents();
