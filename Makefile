@@ -1,5 +1,5 @@
 CFLAGS  = `pkg-config --cflags cairo` `pkg-config --cflags x11` -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-but-set-variable
-LDFLAGS = `pkg-config --libs   cairo` `pkg-config --libs   x11` -lglfw -lGL -lGLEW -lm
+LDFLAGS = `pkg-config --libs   cairo` `pkg-config --libs   x11` -lglfw -lGL -lGLEW -lm -lglut -lGLU
 
 all: project2
 

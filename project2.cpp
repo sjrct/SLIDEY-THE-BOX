@@ -3,8 +3,12 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <string>
 
 #include <GL/glew.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+#include <GL/freeglut.h>
 
 #define GLFW_DLL
 #define GLFW_EXPOSE_NATIVE_X11
@@ -20,6 +24,8 @@
 #include <cairo.h>
 #include <cairo-xlib.h>
 #include <X11/Xlib.h>
+
+using namespace std;
 
 #ifndef CAIRO_HAS_XLIB_SURFACE
 	#error Oh noes!
@@ -306,7 +312,7 @@ static void out_text(GLFWwindow * window, const char * txt)
 int main()
 {
 	glfwSetErrorCallback(error_callback);
-
+	
 	// initialize glfw
 	if (!glfwInit()) {
 		fprintf(stderr, "error: could not start glfw.\n");
@@ -450,6 +456,8 @@ int main()
 
 			regmat(prog, view, "view");
 			regmat(prog, proj, "proj");
+			
+			if (q_down) exit(0);
 
 			// redraw
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -458,7 +466,7 @@ int main()
 			draw_model(prog, cube,  plyr_pos, plyr_rot, glm::vec3(0.), glm::vec3(1.));
 			draw_model(prog, plane, glm::vec3(0, -1., 0), pln_rot, glm::vec3(0.), glm::vec3(1.));
 			draw_model(prog, point, pnt_pos, pln_rot, pnt_rot, glm::vec3(.5));
-
+			
 			char buf[64];
 			if (level < 0) {
 				sprintf(buf, "You lose with %d points on level %d.\n", points_got, -level);
