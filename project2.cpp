@@ -312,7 +312,7 @@ static void out_text(GLFWwindow * window, const char * txt)
 int main()
 {
 	glfwSetErrorCallback(error_callback);
-	
+
 	// initialize glfw
 	if (!glfwInit()) {
 		fprintf(stderr, "error: could not start glfw.\n");
@@ -456,7 +456,7 @@ int main()
 
 			regmat(prog, view, "view");
 			regmat(prog, proj, "proj");
-			
+
 			if (q_down) exit(0);
 
 			// redraw
@@ -466,15 +466,15 @@ int main()
 			draw_model(prog, cube,  plyr_pos, plyr_rot, glm::vec3(0.), glm::vec3(1.));
 			draw_model(prog, plane, glm::vec3(0, -1., 0), pln_rot, glm::vec3(0.), glm::vec3(1.));
 			draw_model(prog, point, pnt_pos, pln_rot, pnt_rot, glm::vec3(.5));
-			
+
 			char buf[64];
 			if (level < 0) {
-				sprintf(buf, "You lose with %d points on level %d.\n", points_got, -level);
+				sprintf(buf, "You lose with %d points on level %d.\n", points_got + ((-level)-1)*NEEDED_TO_WIN, -level);
 				out_text(window, buf);
 			} else if (level == LEVELS_TO_WIN) {
 				out_text(window, "You win!");
 			} else {
-				sprintf(buf, "Points: %d\nLevel: %d", points_got, level);
+				sprintf(buf, "Points: %d\nLevel: %d", points_got + (level-1)*NEEDED_TO_WIN, level);
 				out_text(window, buf);
 			}
 
